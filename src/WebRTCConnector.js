@@ -15,6 +15,14 @@ class WebRTCConnector {
     this.peer = peer;
     this.peer.addEventListener("datachannel", this.awaitDataChannel.bind(this));
   }
+  createRestreamer(sentVideo) {
+    this.restreamer = new Restreamer(sentVideo);
+    this.restreamer.start();
+    this.onBlob(async (blob) => {
+      console.log("Got Blob ", blob.constructor.name, blob.size);
+      this.restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
+    });
+  }
   createSender(stream, name, seq, nCascade) {
     this.sender = new Sender(stream, name, seq, nCascade);
     let count = 0;
@@ -23,7 +31,7 @@ class WebRTCConnector {
       this.sendBlob(blob);
       // if (count++ === 2) this.stopSender();
     };
-    this.sender.onLoBlob(blobSender.bind(this));
+    this.sender.onHiBlob(blobSender.bind(this));
     this.sender.start();
   }
   stopSender() {
@@ -64,6 +72,9 @@ class WebRTCConnector {
     const convertToBlob = (arrayBuffer) => {
       console.log("Convert to blob called", arrayBuffer.byteLength);
       const blob = new Blob([arrayBuffer]);
+      // if (this.restreamer) {
+      //   this.restreamer.addBlob(blob);
+      // }
       cb(blob);
     };
     this.blobHandler.onMessage(convertToBlob);
@@ -169,6 +180,9 @@ class Sender {
   connectToCascade() {}
   onLoBlob(cb) {
     this.lorezBlobber.onBlob(cb);
+  }
+  onHiBlob(cb) {
+    this.hirezBlobber.onBlob(cb);
   }
   sendLoBlob(blob) {
     // console.log("loBlob", blob.size);

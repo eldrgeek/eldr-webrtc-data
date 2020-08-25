@@ -271,19 +271,18 @@ const ready = async () => {
   let restreamer = null;
 
   function send() {
-    console.clear();
     if (sourceConnector.sender) {
       sourceConnector.stopSender();
       return;
     }
+    console.clear();
     destConnector.onText((data) => {
       console.log("Text Data ", data);
     });
-    destConnector.onBlob(async (blob) => {
-      console.log("Got Blob ", blob.constructor.name, blob.size);
-      debugger;
-      restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
-    });
+    // destConnector.onBlob(async (blob) => {
+    //   console.log("Got Blob ", blob.constructor.name, blob.size);
+    //   // restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
+    // });
     if (sourceConnector.sendText) {
       sourceConnector.sendText("sending data");
       const blob = new Blob(["this is the contents of a blob"]);
@@ -292,8 +291,9 @@ const ready = async () => {
       sourceConnector.createSender(localStream, "name", 1, 4);
       console.log("LOW STREAM", sourceConnector.sender.lorezStream);
       blobbedVideo.srcObject = sourceConnector.sender.lorezStream;
-      restreamer = new Restreamer(sentVideo);
-      restreamer.start();
+      destConnector.createRestreamer(sentVideo);
+      // restreamer = new Restreamer(sentVideo);
+      // restreamer.start();
     } else {
       console.log("send is not set");
     }
