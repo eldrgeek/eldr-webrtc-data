@@ -31,24 +31,35 @@ class WebRTCConnector {
         this.blobChannel,
         event.channel
       );
-      this.sendBlob = this.blobHandler.sendBlob.bind(this.blobHandler);
+      this.sendBlob = this.sendBlob.bind(this);
     } else {
       this.textHandler = new ChannelHandler(
         TEXT_CHANNEL,
         this.textChannel,
         event.channel
       );
-      this.sendText = this.textHandler.sendText.bind(this.textHandler);
+      this.sendText = this.sendText.bind(this);
     }
   }
   sendText(message) {
-    this.textChannel.sendText(message);
+    this.textHandler.sendText(message);
   }
-  sendBlob(message) {
-    this.blogChannel.sendBlob(message);
+  async sendBlob(message) {
+    if (message.constructor.name === "ArrayBuffer") {
+      this.blobHandler.sendArrayBuffer(message);
+    } else {
+      const buffer = await message.arrayBuffer();
+      console.log("Array Buffer length", buffer.byteLength);
+      this.blobHandler.sendArrayBuffer(buffer);
+    }
   }
   onBlob(cb) {
-    this.blobHandler.onMessage(cb);
+    const convertToBlob = (arrayBuffer) => {
+      console.log("Convert to blob called", arrayBuffer.byteLength);
+      const blob = new Blob([arrayBuffer]);
+      cb(blob);
+    };
+    this.blobHandler.onMessage(convertToBlob);
   }
   onText(cb) {
     this.textHandler.onMessage(cb);
@@ -56,7 +67,7 @@ class WebRTCConnector {
 }
 class ChannelHandler {
   constructor(name, channel, dataChannel) {
-    console.log("Set up datachannel", name, channel);
+    // console.log("Set up datachannel", name, channel);
     this.name = name;
     this.channel = channel;
     this.dataChannel = dataChannel;
@@ -67,11 +78,11 @@ class ChannelHandler {
     this.dataChannel.addEventListener("close", this.awaitClose.bind(this));
   }
   awaitClose(event) {
-    console.log("PC1 Remote close");
+    // console.log("PC1 Remote close");
     this.sendFunction = null;
   }
   awaitOpen(event) {
-    console.log(this.name, "Remote open");
+    // console.log(this.name, "Remote open");
     this.channel.addEventListener("message", this.awaitMesage.bind(this));
     this.dataChannel.addEventListener("message", this.awaitDCMesage.bind(this));
   }
@@ -79,8 +90,8 @@ class ChannelHandler {
     console.log("Send Text called");
     this.channel.send(message);
   }
-  sendBlob(message) {
-    console.log("Send Blob called");
+  sendArrayBuffer(message) {
+    console.log("Send ArrayBuffer called");
     this.channel.send(message);
   }
   respond(message) {
@@ -95,7 +106,7 @@ class ChannelHandler {
   }
   awaitDCMesage(event) {
     console.log("received DC channel", this.name, JSON.stringify(event.data));
-    if (this.cb) this.cb(event);
+    if (this.cb) this.cb(event.data);
     this.respond("ack");
   }
 }

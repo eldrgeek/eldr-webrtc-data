@@ -272,15 +272,18 @@ const ready = async () => {
       sourceConnector.stopSender();
       return;
     }
-    destConnector.onText((event) => {
-      console.log("Text Event ");
+    destConnector.onText((data) => {
+      console.log("Text Data ", data);
     });
-    destConnector.onBlob((event) => {
-      console.log("Got Blob ");
+    destConnector.onBlob(async (blob) => {
+      console.log("Got Blob ", blob.constructor.name, blob.size);
+      console.log("Blob text", await blob.text());
     });
     if (sourceConnector.sendText) {
       sourceConnector.sendText("sending data");
-      sourceConnector.sendBlob(new ArrayBuffer(8));
+      const blob = new Blob(["this is the contents of a blob"]);
+      console.log("SIZE OF CONSTRUCTED BLOB", blob.size);
+      sourceConnector.sendBlob(blob);
       sourceConnector.createSender(localStream, "name", 1, 4);
       console.log("LOW STREAM", sourceConnector.sender.lorezStream);
       blobbedVideo.srcObject = sourceConnector.sender.lorezStream;

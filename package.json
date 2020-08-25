@@ -1,7 +1,7 @@
 {
-  "name": "webtrc-data-test-with-sender",
+  "name": "webrtc-data-test-master",
   "version": "1.0.0",
-  "description": "",
+  "description": "Local WebRTC connection test framewrk with WebRTCConnector, Blobber, Restreamer",
   "main": "index.html",
   "scripts": {
     "start": "parcel index.html --open",
