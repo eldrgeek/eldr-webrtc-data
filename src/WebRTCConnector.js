@@ -2,15 +2,16 @@ import VideoStreamMerger from "./video-stream-merger";
 import labeledStream from "./labeledStream";
 import Blobber from "./Blobber";
 import Restreamer from "./Restreamer";
-class HootConnector {
-  constructor(peer, name, create = true) {
-    const CHANNEL_NAME = "my channel";
-    let index = 0;
+const BLOB_CHANNEL = "BlobChannel";
+const TEXT_CHANNEL = "TextChannel";
+class WebRTCConnector {
+  constructor(peer, name, mode) {
     this.name = name;
-    if (create) {
-      this.channel = peer.createDataChannel(CHANNEL_NAME + index);
-      this.channel.binary = true;
-    }
+    this.textChannel = peer.createDataChannel(TEXT_CHANNEL);
+    this.blobChannel = peer.createDataChannel(BLOB_CHANNEL);
+    this.blobChannel.binaryType = "arraybuffer";
+
+    //https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/binaryType
     this.peer = peer;
     this.peer.addEventListener("datachannel", this.awaitDataChannel.bind(this));
   }
@@ -24,8 +25,44 @@ class HootConnector {
   }
   awaitDataChannel(event) {
     console.log(this.name, "received a data channel notifiction");
-    this.dataChannel = event.channel;
-    this.dataChannel.binary = true;
+    if (event.channel.label === BLOB_CHANNEL) {
+      this.blobHandler = new ChannelHandler(
+        BLOB_CHANNEL,
+        this.blobChannel,
+        event.channel
+      );
+      this.sendBlob = this.blobHandler.sendBlob.bind(this.blobHandler);
+    } else {
+      this.textHandler = new ChannelHandler(
+        TEXT_CHANNEL,
+        this.textChannel,
+        event.channel
+      );
+      this.sendText = this.textHandler.sendText.bind(this.textHandler);
+    }
+  }
+  sendText(message) {
+    this.textChannel.sendText(message);
+  }
+  sendBlob(message) {
+    this.blogChannel.sendBlob(message);
+  }
+  onBlob(cb) {
+    this.blobHandler.onMessage(cb);
+  }
+  onText(cb) {
+    this.textHandler.onMessage(cb);
+  }
+}
+class ChannelHandler {
+  constructor(name, channel, dataChannel) {
+    console.log("Set up datachannel", name, channel);
+    this.name = name;
+    this.channel = channel;
+    this.dataChannel = dataChannel;
+    if (name === BLOB_CHANNEL) {
+      this.dataChannel.binaryType = "arraybuffer";
+    }
     this.dataChannel.addEventListener("open", this.awaitOpen.bind(this));
     this.dataChannel.addEventListener("close", this.awaitClose.bind(this));
   }
@@ -35,29 +72,30 @@ class HootConnector {
   }
   awaitOpen(event) {
     console.log(this.name, "Remote open");
-    if (this.channel)
-      this.channel.addEventListener("message", this.awaitMesage.bind(this));
+    this.channel.addEventListener("message", this.awaitMesage.bind(this));
     this.dataChannel.addEventListener("message", this.awaitDCMesage.bind(this));
   }
-  send(message) {
-    console.log("Send called");
-    if (this.channel)
-      this.channel.send({ name: this.name, type: "send", message });
+  sendText(message) {
+    console.log("Send Text called");
+    this.channel.send(message);
+  }
+  sendBlob(message) {
+    console.log("Send Blob called");
+    this.channel.send(message);
   }
   respond(message) {
-    if (this.dataChannel)
-      this.dataChannel.send({ name: this.name, type: "reply", message });
+    this.dataChannel.send("response: " + message);
   }
   awaitMesage(event) {
     console.log("received on channel", this.name, JSON.stringify(event.data));
     console.log(event.data);
   }
+  onMessage(cb) {
+    this.cb = cb;
+  }
   awaitDCMesage(event) {
-    console.log(
-      "received on DataChannel",
-      this.name,
-      JSON.stringify(event.data)
-    );
+    console.log("received DC channel", this.name, JSON.stringify(event.data));
+    if (this.cb) this.cb(event);
     this.respond("ack");
   }
 }
@@ -97,7 +135,7 @@ class Receiver {
 }
 class Sender {
   constructor(stream, name, iPos, nCascade) {
-    console.error("Making sendiner");
+    console.error("Making sender");
     if (!stream || !name || iPos === undefined || !nCascade) {
       console.log("Missing arguments to Hootconnector");
     }
@@ -112,10 +150,10 @@ class Sender {
   }
   connectToCascade() {}
   sendLoBlob(blob) {
-    console.log("loBlob", blob.size);
+    // console.log("loBlob", blob.size);
   }
   sendHiBlob(blob) {
-    console.log("hiBlob", blob.size);
+    // console.log("hiBlob", blob.size);
   }
   start() {
     console.error("starting");
@@ -136,7 +174,7 @@ class Sender {
     });
   }
 }
-export default HootConnector;
+export default WebRTCConnector;
 export { Sender, Receiver };
 
 /*
