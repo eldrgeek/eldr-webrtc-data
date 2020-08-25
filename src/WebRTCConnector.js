@@ -17,6 +17,13 @@ class WebRTCConnector {
   }
   createSender(stream, name, seq, nCascade) {
     this.sender = new Sender(stream, name, seq, nCascade);
+    let count = 0;
+    const blobSender = (blob) => {
+      console.log("BlobSender got blob", this.name);
+      this.sendBlob(blob);
+      // if (count++ === 2) this.stopSender();
+    };
+    this.sender.onLoBlob(blobSender.bind(this));
     this.sender.start();
   }
   stopSender() {
@@ -105,7 +112,7 @@ class ChannelHandler {
     this.cb = cb;
   }
   awaitDCMesage(event) {
-    console.log("received DC channel", this.name, JSON.stringify(event.data));
+    console.log("received DC channel", this.name);
     if (this.cb) this.cb(event.data);
     this.respond("ack");
   }
@@ -160,6 +167,9 @@ class Sender {
     this.hirezBlobber.onBlob(this.sendHiBlob.bind(this));
   }
   connectToCascade() {}
+  onLoBlob(cb) {
+    this.lorezBlobber.onBlob(cb);
+  }
   sendLoBlob(blob) {
     // console.log("loBlob", blob.size);
   }

@@ -8,6 +8,7 @@
 
 // "use strict";
 import WebRTCConnector from "./WebRTCConnector";
+import Restreamer from "./Restreamer";
 const diags = { progress: true, bandwidth: false };
 if (diags.progress) console.log("loaded js");
 const ready = async () => {
@@ -30,6 +31,7 @@ const ready = async () => {
   const localVideo = document.getElementById("localVideo");
   const remoteVideo = document.getElementById("remoteVideo");
   const blobbedVideo = document.getElementById("blobbedVideo");
+  const sentVideo = document.getElementById("sentVideo");
 
   localVideo.addEventListener("loadedmetadata", function () {
     if (diags.bandwidth)
@@ -266,8 +268,10 @@ const ready = async () => {
   }
   let sourceConnector,
     destConnector = null;
+  let restreamer = null;
 
   function send() {
+    console.clear();
     if (sourceConnector.sender) {
       sourceConnector.stopSender();
       return;
@@ -277,16 +281,19 @@ const ready = async () => {
     });
     destConnector.onBlob(async (blob) => {
       console.log("Got Blob ", blob.constructor.name, blob.size);
-      console.log("Blob text", await blob.text());
+      debugger;
+      restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
     });
     if (sourceConnector.sendText) {
       sourceConnector.sendText("sending data");
       const blob = new Blob(["this is the contents of a blob"]);
       console.log("SIZE OF CONSTRUCTED BLOB", blob.size);
-      sourceConnector.sendBlob(blob);
+      // sourceConnector.sendBlob(blob);
       sourceConnector.createSender(localStream, "name", 1, 4);
       console.log("LOW STREAM", sourceConnector.sender.lorezStream);
       blobbedVideo.srcObject = sourceConnector.sender.lorezStream;
+      restreamer = new Restreamer(sentVideo);
+      restreamer.start();
     } else {
       console.log("send is not set");
     }

@@ -104,6 +104,7 @@ class Restreamer {
     this.enabled = true;
   }
   async addToBuffer() {
+    debugger;
     if (!this.enabled) return;
     const buffer = this.blobs[this.index];
     const arrayBuffer = await buffer.arrayBuffer();
@@ -113,7 +114,7 @@ class Restreamer {
       this.index++;
       this.bufferBusy = true;
     } catch (error) {
-      console.log("Problem adding");
+      console.log("Problem adding", error.toString());
     }
   }
   async onupdateend() {
@@ -123,6 +124,7 @@ class Restreamer {
     }
   }
   async addBlob(blob) {
+    debugger;
     this.blobs.push(blob);
     this.getStat("firstBlob");
 
