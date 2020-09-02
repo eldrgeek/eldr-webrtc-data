@@ -43,8 +43,8 @@ class WebRTCConnector {
   setRestreamer(name, restreamer) {
     this.channels[name].restreamer = restreamer;
   }
-  createRestreamer(name, sentVideo) {
-    const restreamer = new Restreamer(sentVideo);
+  createRestreamer(name, configuration, sentVideo) {
+    const restreamer = new Restreamer(sentVideo, configuration);
     restreamer.start();
     this.setRestreamer(name);
     this.onBlob(async (blob) => {

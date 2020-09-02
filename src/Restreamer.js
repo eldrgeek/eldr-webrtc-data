@@ -1,5 +1,5 @@
 class Restreamer {
-  constructor(video) {
+  constructor(video, configuration) {
     this.stats = {
       constructed: null,
       sourceOpened: null,
@@ -10,6 +10,7 @@ class Restreamer {
       videoPlaying: null
     };
     this.getStat("constructed");
+    this.configuration = configuration;
     this.blobs = [];
     // this.boundAddBlob = this.addBlob.bind(this);
     this.index = 0;
@@ -94,12 +95,17 @@ class Restreamer {
   async handleSourceOpen() {
     // console.log("Source open", this);
     this.getStat("sourceOpened");
-
-    this.sourceBuffer = this.mediaSource.addSourceBuffer(
-      // "video/webm; codecs=opus,vp9"
-      "video/webm; codecs=opus,vp9"
-    );
-
+    if (this.configuration.audio) {
+      this.sourceBuffer = this.mediaSource.addSourceBuffer(
+        // "video/webm; codecs=opus,vp9"
+        "video/webm; codecs=opus,vp9"
+      );
+    } else {
+      this.sourceBuffer = this.mediaSource.addSourceBuffer(
+        // "video/webm; codecs=opus,vp9"
+        "video/webm; codecs=vp9"
+      );
+    }
     this.sourceBuffer.onupdateend = this.onupdateend.bind(this);
     this.enabled = true;
   }

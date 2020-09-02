@@ -280,7 +280,7 @@ const ready = async () => {
     destConnector.onText((data) => {
       console.log("Text Data ", data);
     });
-    // destConnector.onBlob(async (blob) => {
+    // destConnector.onBlob(async (blob) => {s
     //   console.log("Got Blob ", blob.constructor.name, blob.size);
     //   // restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
     // });
@@ -293,7 +293,11 @@ const ready = async () => {
     blobbedVideo.srcObject = sourceConnector.getSender(
       BLOB_CHANNEL
     ).lorezStream;
-    destConnector.createRestreamer(BLOB_CHANNEL, sentVideo);
+    destConnector.createRestreamer(
+      BLOB_CHANNEL,
+      { audio: true, video: true },
+      sentVideo
+    );
     // restreamer = new Restreamer(sentVideo);
     // restreamer.start();
     // } else {
