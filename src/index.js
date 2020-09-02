@@ -269,7 +269,8 @@ const ready = async () => {
   let sourceConnector,
     destConnector = null;
   let restreamer = null;
-
+  const BLOB_CHANNEL = "BlobChannel";
+  const TEXT_CHANNEL = "TextChannel";
   function send() {
     if (sourceConnector.sender) {
       sourceConnector.stopSender();
@@ -283,24 +284,27 @@ const ready = async () => {
     //   console.log("Got Blob ", blob.constructor.name, blob.size);
     //   // restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
     // });
-    if (sourceConnector.sendText) {
-      sourceConnector.sendText("sending data");
-      const blob = new Blob(["this is the contents of a blob"]);
-      console.log("SIZE OF CONSTRUCTED BLOB", blob.size);
-      // sourceConnector.sendBlob(blob);
-      sourceConnector.createSender(localStream, "name", 1, 4);
-      console.log("LOW STREAM", sourceConnector.sender.lorezStream);
-      blobbedVideo.srcObject = sourceConnector.sender.lorezStream;
-      destConnector.createRestreamer(sentVideo);
-      // restreamer = new Restreamer(sentVideo);
-      // restreamer.start();
-    } else {
-      console.log("send is not set");
-    }
+    // if (sourceConnector.sendText) {
+    sourceConnector.getHandler(TEXT_CHANNEL).sendText("sending data");
+    const blob = new Blob(["this is the contents of a blob"]);
+    console.log("SIZE OF CONSTRUCTED BLOB", blob.size);
+    // sourceConnector.sendBlob(blob);
+    sourceConnector.createSender(BLOB_CHANNEL, localStream, "name", 1, 4);
+    blobbedVideo.srcObject = sourceConnector.getSender(
+      BLOB_CHANNEL
+    ).lorezStream;
+    destConnector.createRestreamer(BLOB_CHANNEL, sentVideo);
+    // restreamer = new Restreamer(sentVideo);
+    // restreamer.start();
+    // } else {
+    // console.log("send is not set");
+    // }
   }
   function opendata() {
     sourceConnector = new WebRTCConnector(pc1, "Pc1");
     destConnector = new WebRTCConnector(pc2, "PC2");
+    // sourceConnector.createDataChannel(TEXT_CHANNEL,"text")
+    // sourceConnector.createDataChannel(BLOB_CHANNEL,"binary")
 
     return;
   }

@@ -7,32 +7,62 @@ const TEXT_CHANNEL = "TextChannel";
 class WebRTCConnector {
   constructor(peer, name, mode) {
     this.name = name;
-    this.textChannel = peer.createDataChannel(TEXT_CHANNEL);
-    this.blobChannel = peer.createDataChannel(BLOB_CHANNEL);
-    this.blobChannel.binaryType = "arraybuffer";
-
-    //https://developer.mozilla.org/en-US/docs/Web/API/RTCDataChannel/binaryType
     this.peer = peer;
+    this.channels = {};
+    this.peer = peer;
+    this.createDataChannel(TEXT_CHANNEL, "text");
+    this.createDataChannel(BLOB_CHANNEL, "binary");
+    this.blobChannel = this.channels[BLOB_CHANNEL].channel;
+    this.textChannel = this.channels[TEXT_CHANNEL].channel;
+    this.channels[BLOB_CHANNEL].binaryType = "arraybuffer";
     this.peer.addEventListener("datachannel", this.awaitDataChannel.bind(this));
   }
-  createRestreamer(sentVideo) {
-    this.restreamer = new Restreamer(sentVideo);
-    this.restreamer.start();
+  createDataChannel(name, type) {
+    this.channels[name] = { channel: this.peer.createDataChannel(name) };
+    if (type === "binary")
+      this.channels[name].channel.binaryType = "arraybuffer";
+  }
+  getChannel(name) {
+    return this.channels[name].channel;
+  }
+  getHandler(name) {
+    return this.channels[name].handler;
+  }
+  setHandler(name, handler) {
+    this.channels[name].handler = handler;
+  }
+  getSender(name) {
+    return this.channels[name].sender;
+  }
+  setSender(name, sender) {
+    this.channels[name].sender = sender;
+  }
+  getRestreamer(name) {
+    return this.channels[name].restreamer;
+  }
+  setRestreamer(name, restreamer) {
+    this.channels[name].restreamer = restreamer;
+  }
+  createRestreamer(name, sentVideo) {
+    const restreamer = new Restreamer(sentVideo);
+    restreamer.start();
+    this.setRestreamer(name);
     this.onBlob(async (blob) => {
       console.log("Got Blob ", blob.constructor.name, blob.size);
-      this.restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
+      restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
     });
   }
-  createSender(stream, name, seq, nCascade) {
-    this.sender = new Sender(stream, name, seq, nCascade);
+  createSender(channelName, stream, name, seq, nCascade) {
+    const sender = new Sender(stream, name, seq, nCascade);
+    this.setSender(channelName, sender);
     let count = 0;
     const blobSender = (blob) => {
       console.log("BlobSender got blob", this.name);
       this.sendBlob(blob);
       // if (count++ === 2) this.stopSender();
     };
-    this.sender.onHiBlob(blobSender.bind(this));
-    this.sender.start();
+    sender.onHiBlob(blobSender.bind(this));
+    sender.start();
   }
   stopSender() {
     this.sender.stop();
@@ -40,12 +70,14 @@ class WebRTCConnector {
   }
   awaitDataChannel(event) {
     console.log(this.name, "received a data channel notifiction");
+    // const theChannel = this.channels[event.channel.label]
     if (event.channel.label === BLOB_CHANNEL) {
       this.blobHandler = new ChannelHandler(
         BLOB_CHANNEL,
         this.blobChannel,
         event.channel
       );
+      this.setHandler(BLOB_CHANNEL, this.blobHandler);
       this.sendBlob = this.sendBlob.bind(this);
     } else {
       this.textHandler = new ChannelHandler(
@@ -53,6 +85,8 @@ class WebRTCConnector {
         this.textChannel,
         event.channel
       );
+      this.setHandler(TEXT_CHANNEL, this.textHandler);
+
       this.sendText = this.sendText.bind(this);
     }
   }
@@ -129,39 +163,39 @@ class ChannelHandler {
   }
 }
 
-class Receiver {
-  constructor(video) {
-    if (!video) {
-      video = document.createElement("video");
-      video.autoplay = true;
-      video.muted = true;
-      video.srcObject = mediaStream;
-      video.setAttribute(
-        "style",
-        "position:fixed; left: 0px; top:0px; pointer-events: none; opacity:0;"
-      );
-      document.body.appendChild(video);
-    }
-    this.video = video;
-    this.restreamer = new Restreamer(video);
-    this.getMessage = this.getMessage.bind(this);
-  }
-  setChannel(dataChannel) {
-    this.channel = dataChannel;
-  }
-  getMessage(event) {
-    const message = event.data;
-    if (message.type === "blob") {
-      this.restreamer.addBlob(message.payload);
-    }
-  }
-  start() {
-    this.channel.addEventListener("message", this.getMessage);
-  }
-  stop() {
-    this.channel.removeEventListener("message", this.getMessage);
-  }
-}
+// class Receiver {
+//   constructor(video) {
+//     if (!video) {
+//       video = document.createElement("video");
+//       video.autoplay = true;
+//       video.muted = true;
+//       video.srcObject = mediaStream;
+//       video.setAttribute(
+//         "style",
+//         "position:fixed; left: 0px; top:0px; pointer-events: none; opacity:0;"
+//       );
+//       document.body.appendChild(video);
+//     }
+//     this.video = video;
+//     this.restreamer = new Restreamer(video);
+//     this.getMessage = this.getMessage.bind(this);
+//   }
+//   setChannel(dataChannel) {
+//     this.channel = dataChannel;
+//   }
+//   getMessage(event) {
+//     const message = event.data;
+//     if (message.type === "blob") {
+//       this.restreamer.addBlob(message.payload);
+//     }
+//   }
+//   start() {
+//     this.channel.addEventListener("message", this.getMessage);
+//   }
+//   stop() {
+//     this.channel.removeEventListener("message", this.getMessage);
+//   }
+// }
 class Sender {
   constructor(stream, name, iPos, nCascade) {
     console.error("Making sender");
@@ -210,7 +244,7 @@ class Sender {
   }
 }
 export default WebRTCConnector;
-export { Sender, Receiver };
+// export { Sender, Receiver };
 
 /*
 const blb    = new Blob(["Lorem ipsum sit"], {type: "text/plain"});
