@@ -8,6 +8,8 @@
 
 // "use strict";
 import WebRTCConnector from "./WebRTCConnector";
+import labeledStream from "./labeledStream";
+
 import Restreamer from "./Restreamer";
 const diags = { progress: true, bandwidth: false };
 if (diags.progress) console.log("loaded js");
@@ -272,10 +274,14 @@ const ready = async () => {
   const BLOB_CHANNEL = "BlobChannel";
   const TEXT_CHANNEL = "TextChannel";
   function send() {
-    if (sourceConnector.sender) {
-      sourceConnector.stopSender();
+    if (sourceConnector.getBlobber(BLOB_CHANNEL)) {
+      sourceConnector.stopStream(BLOB_CHANNEL);
       return;
     }
+    // if (sourceConnector.sender) {
+    //   sourceConnector.stopSender();
+    //   return;
+    // }
     console.clear();
     destConnector.onText((data) => {
       console.log("Text Data ", data);
@@ -286,13 +292,16 @@ const ready = async () => {
     // });
     // if (sourceConnector.sendText) {
     sourceConnector.getHandler(TEXT_CHANNEL).sendText("sending data");
-    const blob = new Blob(["this is the contents of a blob"]);
-    console.log("SIZE OF CONSTRUCTED BLOB", blob.size);
+
+    // const blob = new Blob(["this is the contents of a blob"]);
+    // console.log("SIZE OF CONSTRUCTED BLOB", blob.size);
     // sourceConnector.sendBlob(blob);
-    sourceConnector.createSender(BLOB_CHANNEL, localStream, "name", 1, 4);
-    blobbedVideo.srcObject = sourceConnector.getSender(
-      BLOB_CHANNEL
-    ).lorezStream;
+    const merger = labeledStream(localStream, "test", 1, 4);
+    const loRezStream = merger.result;
+    blobbedVideo.srcObject = loRezStream;
+    sourceConnector.createStream(BLOB_CHANNEL, loRezStream);
+    sourceConnector.startStream(BLOB_CHANNEL);
+    // sourceConnector.createSender(BLOB_CHANNEL, localStream, "name", 1, 4);
     destConnector.createRestreamer(
       BLOB_CHANNEL,
       { audio: true, video: true },

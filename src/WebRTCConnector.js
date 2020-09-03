@@ -17,6 +17,12 @@ class WebRTCConnector {
     this.channels[BLOB_CHANNEL].binaryType = "arraybuffer";
     this.peer.addEventListener("datachannel", this.awaitDataChannel.bind(this));
   }
+  getTextChannelName() {
+    return TEXT_CHANNEL;
+  }
+  getBlobChannelName() {
+    return BLOB_CHANNEL;
+  }
   createDataChannel(name, type) {
     this.channels[name] = { channel: this.peer.createDataChannel(name) };
     if (type === "binary")
@@ -37,6 +43,12 @@ class WebRTCConnector {
   setSender(name, sender) {
     this.channels[name].sender = sender;
   }
+  getBlobber(name) {
+    return this.channels[name].blobber;
+  }
+  setBlobber(name, blobber) {
+    this.channels[name].blobber = blobber;
+  }
   getRestreamer(name) {
     return this.channels[name].restreamer;
   }
@@ -48,9 +60,30 @@ class WebRTCConnector {
     restreamer.start();
     this.setRestreamer(name);
     this.onBlob(async (blob) => {
-      console.log("Got Blob ", blob.constructor.name, blob.size);
-      restreamer.addBlob(blob); // console.log("Blob text", await blob.text());
+      // console.log("Got Blob ", blob.constructor.name, blob.size);
+      restreamer.addBlob(blob);
     });
+  }
+  createStream(channelName, stream) {
+    const ch = this.getHandler(channelName);
+    const blobber = new Blobber(stream);
+    this.setBlobber(channelName, blobber);
+    blobber.onBlob((message) => {
+      // console.log("Blob", message.constructor.name);
+      ch.sendBinaryData(message);
+    });
+    ch.onMessage((data) => {
+      console.log("Stream Message");
+    });
+  }
+  startStream(channelName) {
+    const blobber = this.getBlobber(channelName);
+    blobber.start(60);
+  }
+  stopStream(channelName) {
+    const blobber = this.getBlobber(channelName);
+    blobber.stop();
+    this.setBlobber(channelName, null);
   }
   createSender(channelName, stream, name, seq, nCascade) {
     const sender = new Sender(stream, name, seq, nCascade);
@@ -95,16 +128,17 @@ class WebRTCConnector {
   }
   async sendBlob(message) {
     if (message.constructor.name === "ArrayBuffer") {
-      this.blobHandler.sendArrayBuffer(message);
+      this.blobHandler.sendBinaryData(message);
     } else {
-      const buffer = await message.arrayBuffer();
-      console.log("Array Buffer length", buffer.byteLength);
-      this.blobHandler.sendArrayBuffer(buffer);
+      message.arrayBuffer().then((buffer) => {
+        // console.log("Array Buffer length", buffer.byteLength);
+        this.blobHandler.sendBinaryData(buffer);
+      });
     }
   }
   onBlob(cb) {
     const convertToBlob = (arrayBuffer) => {
-      console.log("Convert to blob called", arrayBuffer.byteLength);
+      // console.log("Convert to blob called", arrayBuffer.byteLength);
       const blob = new Blob([arrayBuffer]);
       // if (this.restreamer) {
       //   this.restreamer.addBlob(blob);
@@ -142,9 +176,15 @@ class ChannelHandler {
     console.log("Send Text called");
     this.channel.send(message);
   }
-  sendArrayBuffer(message) {
-    console.log("Send ArrayBuffer called");
-    this.channel.send(message);
+  sendBinaryData(message) {
+    if (message.constructor.name === "ArrayBuffer") {
+      this.channel.send(message);
+    } else {
+      message.arrayBuffer().then((buffer) => {
+        // console.log("Array Buffer length", buffer.byteLength);
+        this.channel.send(buffer);
+      });
+    }
   }
   respond(message) {
     this.dataChannel.send("response: " + message);
@@ -157,9 +197,9 @@ class ChannelHandler {
     this.cb = cb;
   }
   awaitDCMesage(event) {
-    console.log("received DC channel", this.name);
+    // console.log("received DC channel", this.name);
     if (this.cb) this.cb(event.data);
-    this.respond("ack");
+    // this.respond("ack");
   }
 }
 
@@ -206,6 +246,12 @@ class Sender {
     this.merger = labeledStream(stream, name, iPos, nCascade);
     this.lorezStream = this.merger.result;
     console.error(this.lorezStream);
+
+    /*
+      blobber  = new Blobber(stream);
+      blobber.onBlob(this.sendLoBlob.bind(this));
+
+    */
     this.lorezBlobber = new Blobber(this.lorezStream);
     this.lorezBlobber.onBlob(this.sendLoBlob.bind(this));
     this.hirezBlobber = new Blobber(this.localStream);
